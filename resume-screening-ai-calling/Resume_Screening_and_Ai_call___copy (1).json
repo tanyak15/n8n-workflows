@@ -1,0 +1,1327 @@
+{
+  "name": "Resume Screening and Ai call - copy",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "you are a senior recruiter.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are a senior recruiter.\n\nYou are evaluating a candidate based on the following:\n\n**Job Description:**\n\n{{ $json.description }}\n**Candidate Resume:**\n{{ $json.text }}\nOutput schema (keys and types must match exactly):\n{\n  \"name\": \"string\",\n  \"email\": \"string\",\n  \"contact no\": \"string\",          // include country code if present, keep as string\n  \"relevance\": \"string\",           // percentage string like \"86%\"\n  \"skills\": [\"string\"],            // array of skill strings\n  \"questions to ask\": [\"string\"],  // 3 short-concise follow-up questions\n  \"proceed with candidate\": \"string\" // One of: \"Yes\", \"No\"\n  \"ai calling\":\"string\" // One of: \"Yes\", \"No\",\n  \"Jd id\":\"string\"\n}\nRules:\n- \"relevance\" must include the % sign (e.g., \"82%\").\n- \"contact no\" must be a string (preserve +country code).\n- Return only the JSON object; no explanation, no extra characters.\nPlease provide a structured JSON output with the following format:\n\n{\n  \"name\": \"<Full name extracted from resume>\",\n  \"email\": \"<Email extracted from resume>\",\n  \"contact no\": \"Extract the most complete phone number from the resume text.Accept formats like:+91 9876543210, +1-234-567-8901, (987) 654 3210, 9876543210, etc.\nIf multiple numbers appear, prefer the most likely mobile (10–13 digits).\nAlways preserve +country code if available.\nKeep it as a string only — no brackets or labels like “Phone:”.\nIf no clear number is found, set \"contact no\": null.\",\n  \"relevance\":\"<How closely the resume matches the JD in percentage >\",\n  \"skills\": [List technical skills in resume],\n  \"questions to ask\": must contain exactly two questions:\nThe first question should be a proper, open-ended question that requires a descriptive or thoughtful answer.\nExample: \"Can you describe your experience with AWS CI/CD pipelines?\"\nThe second and third question should be a short, one-line yes/no question, ideally to confirm availability, preferences, or tool familiarity.\nExample: \"Are you open to working with Looper?\" or \"Do you prefer frontend or backend?\"],\n\"proceed with candidate\": \"Yes\",\n\"ai calling\":\"Yes\",\n\"Jd id\":\"<Jd_id from the previous node>\"\n}\nEnsure the relevance is a numeric percentage based on how well the candidate fits the role based on skills, experience, and tech stack.\nOnly return one output"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        140,
+        -1910
+      ],
+      "id": "37cbdffa-0a49-4c16-bf7d-c7821d47cc49",
+      "name": "AI Agent1",
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"name\": \"Tanya Khandelwal\",\n  \"email\": \"tanya15112001@gmail.com\",\n  \"contact no\": \"+918798543756\",\n  \"relevance\": \"89%\",\n  \"skills\": [\"Kubernetes\", \"Docker\", \"Helm\", \"Azure\", \"Amazon Web Services OneOps\", \"Jenkins\", \"Looper\", \"Concord\"],\n  \"questions to ask\": [\n    \"What do you prefer more - Frontend or backend?\",\n    \"How many years of experience do you have in using Amazon Web Services OneOps?\",\n    \"Are you open to work with Looper?\"\n  ],\n  \"proceed with candidate\": \"Yes\",\n  \"ai calling\":\"Yes\",\n  \"Jd id\":\"DevOps_Engineer\"\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        288,
+        -1690
+      ],
+      "id": "2c247c0b-140a-4d09-8add-fa24d3fd7808",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        168,
+        -1690
+      ],
+      "id": "89c11801-2367-4e61-9160-8b78489c0f2c",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "8u3BIh9t4EVlLwDQ",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d05c9f5e-0566-4d66-9043-747517a21019",
+              "leftValue": "={{ $json.proceed_with_candidate }}",
+              "rightValue": "Yes",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "cecc561d-6954-420e-b03e-92c65d53fe51",
+              "leftValue": "={{ $json[\"Contact No\"] }}",
+              "rightValue": "^\\d{10}$",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        956,
+        -1985
+      ],
+      "id": "f08538ce-fbe6-480a-a2da-c5d490db5377",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "file",
+        "name": "={{ $binary.file.fileName || 'resume.pdf' }}\n",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1Q50_42Cz1erIaSp2LqCZ6AJnVs1d7lIf",
+          "mode": "list",
+          "cachedResultName": "Candidates_resume",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1Q50_42Cz1erIaSp2LqCZ6AJnVs1d7lIf"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -520,
+        -1810
+      ],
+      "id": "5c0d9bd4-1b3d-472c-b2b1-0dba7f1b1954",
+      "name": "Google Drive",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "4mzPo9me1exzguIO",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        -80,
+        -1910
+      ],
+      "id": "c490a9e0-bd7e-4a2d-ba2b-c154c54742b7",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "3a49e80a-5c65-49aa-a456-6f4c363f3041",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1180,
+        -1450
+      ],
+      "id": "512b6896-04c2-4c7d-93e4-7b5c13d70d6d",
+      "name": "Webhook",
+      "webhookId": "3a49e80a-5c65-49aa-a456-6f4c363f3041"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "you are a CWS hiring manager.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=From the call transcript below, extract the required hiring details and return a single JSON matching the exact keys shown. Use the transcript only; do not guess. If something isn’t clearly stated, set it thoughtfully to null (or false for booleans) and list it in missing_fields.\n{{ $json.body.call.transcript }}\n\n--------Fields to Fill--------\n-candidate_name: Candidate’s full name as spoken in the call. Prefer the name the user confirms; if only the agent says it and the user affirms, use that.\n-job_role: Role applied for, cleaned to natural title case (e.g., DevOps_Engineer → DevOps Engineer).\n-name_and_role_verified: true if the candidate confirmed both their name and the role; otherwise false.\n\n-intro_summary: A 2-5 lines plain-English summary of the candidate’s self-introduction. If they didn’t really introduce themselves, write a brief sentence like “Intro not clearly provided.”\n\n-location: Current city/state if stated. If not clearly stated, null.\n-jaipur_ok: true if the candidate explicitly agrees they’re comfortable with Jaipur; false if they’re not; null if unclear.\n\n-notice_period_days: string. Use digits; single value like \"15\" or short range \"15-20\". Convert spoken numbers to digits. (string).\n-ctc_current: Current CTC as a short string in LPA, normalized like \"20 LPA\". If only a number is spoken, assume LPA and format it. If unclear, null.\n-ctc_expected: Expected CTC in the same format (e.g., \"25 LPA\"). If a range is spoken, use \"X–Y LPA\". If unclear, null.\n\n-asked_about_role: true if the candidate asked for details or requested clarification on the role; else false.\n-interested_to_proceed: true if the candidate agrees to continue; false if they decline; null if not asked.\n-consented_to_questions: true if they agree to role-specific questions; false otherwise.\n\n-screening_qa: Array of asked substantive questions and answers during the call (exclude greetings/fillers). Each item:\nquestion: the interviewer’s question (exact or neatly paraphrased)\nanswer: the candidate’s answer (concise paraphrase)\n\n-missing_fields: Array of any required fields that are missing/unclear from:\"intro_summary\", \"location\", \"notice_period_days\", \"ctc_current\", \"ctc_expected\".\n-recommendation: One of \"proceed\", \"proceed_with_followup\",\n\"reject\".\nUse judgment from completeness + signals.\n1.Proceed\nAll must be true:\nVerified: name_and_role_verified = true, interested_to_proceed = true, consented_to_questions = true\nLocation OK: jaipur_ok = true\nCompleteness: notice_period_days present (string or range) and both ctc_current & ctc_expected present\nSignal: Intro reasonably clear and at least 2 substantive Q&A items (role-relevant)\nNo critical red flags (e.g., not rejecting location, not declining to proceed)\n2. Proceed_with_followup\nUse when there’s interest but minor gaps such as:\nIntro unclear or too thin\nExact location missing (but candidate didn’t object to Jaipur)\nNotice present but ambiguous (range) or needs confirmation\nCTC present but needs clarification (range, unit, or bands)\nQ&A shallow or < 2 items; needs a tech deep-dive\n3. Reject\nAny hard blocker:\nNot interested / declines to proceed\njaipur_ok = false (location mismatch)\nIdentity/role not verified\nExtremely poor/irrelevant answers indicating mismatch\nMissing multiple core fields and no willingness/ability to clarify\n-notes: One short line of helpful context or follow-ups needed.\n-email_data : Write a 40–50 word email paragraph that starts with “Hi {candidate_name}, …” and matches the recommendation:\n1. \"proceed\" → congratulate + ask for 2–3 slots for a 45-min technical round; mention calendar invite.\n2.\"proceed_with_followup\" → positive tone + ask for the missing_fields (one or two concrete items), then say you’ll schedule the next round after receiving them.\n3. \"reject\" → polite decline + appreciation + keep-on-file note; no feedback promises.\n\nOne paragraph, no bullets, no placeholders, no links.\nNormalization & Rules\n-Convert spoken numbers to digits (e.g., “fifteen” → 15; “twenty five” → 25).\n-For CTC, use LPA strings (\"20 LPA\", \"25–28 LPA\"). If the unit is clearly something else, reflect it; otherwise assume LPA.\n-If multiple values are stated for the same field (e.g., expected CTC), use the latest value or a clear range.\n-in email_datado not ever ask for the time slots from the candidate or tell them that we will send a calender invite.\nDo not invent content. If unsure, use null (or false for booleans) and list the field in missing_fields.\n\nKeep the output valid JSON with exact keys below and nothing extra.\n{\n  \"candidate_name\": \"\",\n  \"job_role\": \"\",\n  \"name_and_role_verified\": false,\n\n  \"intro_summary\": \"\",\n  \"location\": null,\n  \"jaipur_ok\": null,\n  \"notice_period_days\": \"\",\n  \"ctc_current\": null,\n  \"ctc_expected\": null,\n  \"asked_about_role\": false,\n  \"interested_to_proceed\": null,\n  \"consented_to_questions\": false,\n\n  \"screening_qa\": [],\n\n  \"missing_fields\": [],\n  \"recommendation\": \"\",\n  \"notes\": \"\",\n  \"email_data\":\"\"\n}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        -740,
+        -1450
+      ],
+      "id": "9e4d971a-7a39-40cc-b839-3c697c116636",
+      "name": "AI Agent",
+      "executeOnce": false,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"candidate_name\": \"PRADEEP KULKARNI\",\n  \"job_role\": \"DevOps Engineer\",\n  \"name_and_role_verified\": true,\n  \"intro_summary\": \"I’m Pradeep, a 4-year DevOps Engineer focused on AWS, Kubernetes, and CI/CD. At Acme, I automated blue-green deploys and cut release time by 60% using GitHub Actions and ArgoCD. I’m excited about scaling reliable pipelines for high-traffic products.\",\n  \"location\": \"Jaipur\",\n  \"jaipur_ok\": true,\n\n  \"notice_period_days\": \"15\",\n  \"ctc_current\": \"15 LPA\",\n  \"ctc_expected\": \"20 LPA\",\n\n  \"asked_about_role\": false,\n  \"interested_to_proceed\": true,\n  \"consented_to_questions\": true,\n  \"screening_qa\": [\n    {\n      \"question\": \"Can you elaborate on your experience with Terraform and how you manage versioning?\",\n      \"answer\": \"I use Terraform to manage AWS with reusable modules. I pin provider and module versions, tag modules with SemVer, and reference tags in source to control upgrades. All changes go via feature branches/PRs, then we apply to dev → stage → prod.\"\n    },\n    {\n      \"question\": \"What specific security best practices do you implement in AWS?\",\n      \"answer\": \"I don’t have a strong answer yet—I haven’t led AWS security hardening before. I’d need to review the environment and research AWS best practices before making recommendations.\"\n    }\n  ],\n  \"missing_fields\": [\"intro_summary\"],\n  \"recommendation\": \"proceed_with_followup\",\n  \"notes\": \"Confirm current city; capture proper self-introduction in follow-up.\",\n  \"email_data\":\"Hi PRADEEP, thanks for speaking with us about the DevOps Engineer role at Code With Sense. We’d like to proceed after a quick follow-up to confirm your location and CTC details.  Once received, we’ll move forward with the interview.\"\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        -592,
+        -1230
+      ],
+      "id": "e3d32c19-a1aa-4bd4-ad63-999ff840df60",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -712,
+        -1230
+      ],
+      "id": "930f1667-4c39-41cf-9a51-f93b8b744813",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "8u3BIh9t4EVlLwDQ",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b28b708e-db41-40c4-bc63-7b3000fbd49d",
+              "leftValue": "={{ $json.body.event }}",
+              "rightValue": "call_ended",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -960,
+        -1450
+      ],
+      "id": "adeef919-3412-466a-af2c-d30b917a4b34",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.Email }}",
+        "subject": "=Application Update - Code With Sense|{{ $json['Job Id'] }}",
+        "emailType": "text",
+        "message": "={{ $json.email_data }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        76,
+        -1450
+      ],
+      "id": "73d8e9fc-035e-4d06-8d76-1672f7e9e1d3",
+      "name": "Gmail",
+      "webhookId": "8e13710b-1d1c-47fd-90ed-407de3fc6235",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "zph2AM8JzM95DR5J",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1qIHrM0pfOBKlqBpAhYrnKDwlKsbC4apq7vGZEWHY5Lo",
+          "mode": "list",
+          "cachedResultName": "Resume_screening",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1qIHrM0pfOBKlqBpAhYrnKDwlKsbC4apq7vGZEWHY5Lo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "candidates_list",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1qIHrM0pfOBKlqBpAhYrnKDwlKsbC4apq7vGZEWHY5Lo/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "call_Id",
+              "lookupValue": "={{ $('If1').item.json.body.call.call_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -144,
+        -1450
+      ],
+      "id": "3ba7f30c-0284-424c-9817-bc3d15122a4b",
+      "name": "Getting candidate info",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kHc3elZdvHkVPTZj",
+          "name": "Google Sheets account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1qIHrM0pfOBKlqBpAhYrnKDwlKsbC4apq7vGZEWHY5Lo",
+          "mode": "list",
+          "cachedResultName": "Resume_screening",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1qIHrM0pfOBKlqBpAhYrnKDwlKsbC4apq7vGZEWHY5Lo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "candidates_list",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1qIHrM0pfOBKlqBpAhYrnKDwlKsbC4apq7vGZEWHY5Lo/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $json.output.name }}",
+            "Email": "={{ $json.output.email }}",
+            "Contact No": "={{ $json.output['contact no'].slice(4) }}",
+            "Relevance score": "={{ $json.output.relevance }}",
+            "Skills": "={{ $json.output.skills.join(\", \") }}",
+            "Job Id": "={{ $json.output[\"Jd id\"] }}",
+            "Questions To Ask": "={{ $json.output['questions to ask'].map(q => \"• \" + q).join(\"\\n\") }}\n",
+            "proceed_with_candidate": "={{ parseInt($json.output.relevance) >= 50 ? \"Yes\" : \"No\"}}",
+            "Resume": "={{ $('Google Drive').first().json.webViewLink }}\n"
+          },
+          "matchingColumns": [
+            "Email"
+          ],
+          "schema": [
+            {
+              "id": "Job Id",
+              "displayName": "Job Id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Contact No",
+              "displayName": "Contact No",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Relevance score",
+              "displayName": "Relevance score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Skills",
+              "displayName": "Skills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Questions To Ask",
+              "displayName": "Questions To Ask",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "proceed_with_candidate",
+              "displayName": "proceed_with_candidate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Resume",
+              "displayName": "Resume",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "call_Id",
+              "displayName": "call_Id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "agent_name",
+              "displayName": "agent_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "start_timestamp",
+              "displayName": "start_timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "end_timestamp",
+              "displayName": "end_timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "combined_cost",
+              "displayName": "combined_cost",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "introduction_summary",
+              "displayName": "introduction_summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "location_jaipur_ok",
+              "displayName": "location_jaipur_ok",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "screening_ques_ans",
+              "displayName": "screening_ques_ans",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "missing_fields",
+              "displayName": "missing_fields",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email_data",
+              "displayName": "email_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        736,
+        -1985
+      ],
+      "id": "cdbb0adb-36cb-4279-ae52-b00baefdb9af",
+      "name": "update-1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kHc3elZdvHkVPTZj",
+          "name": "Google Sheets account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Updating information after talking to the candidate.",
+        "height": 140,
+        "width": 160
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1060,
+        -1240
+      ],
+      "typeVersion": 1,
+      "id": "38ab1f65-3733-44a6-8315-54d6c2cb7a6e",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.retellai.com/v2/create-phone-call",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": " Authorization",
+              "value": "Bearer key_94cd2d1e6090939d7a17147b4fa1"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from_number\": \"+14432782891\",\n  \"to_number\": \"+91{{$json[\"Contact No\"]}}\",\n  \"retell_llm_dynamic_variables\": {\n  \"candidate_name\": \"{{ $json.Name }}\",\n  \"job_role\": \"{{ $json['Job Id'].replace(/_/g, ' ') }}\",\n  \"questions_to_ask\":\"{{ ($json['Questions To Ask'] || '')\n    .split('\\n').map(q => q.replace(/^•\\s*/,'').trim())\n.filter(Boolean) }}\"\n  }\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1396,
+        -1910
+      ],
+      "id": "0203558e-1d50-4469-8940-ca0eaef66f57",
+      "name": "Retell request"
+    },
+    {
+      "parameters": {
+        "formTitle": "Resume and Jd",
+        "formDescription": "Upload the JD and the Resume",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Upload_resume",
+              "fieldType": "file"
+            },
+            {
+              "fieldLabel": "Job Description",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "DevOps_Engineer"
+                  },
+                  {
+                    "option": "Python_Developer"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        -1180,
+        -1910
+      ],
+      "id": "878fef83-4244-4915-a81f-36314f233d06",
+      "name": "Form submission",
+      "webhookId": "367f0586-cdf5-4408-be4f-9026bcc79347"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1is1Hd0rSyQFSqpGQMLrSIkdppwWR-KxCpCEzniYUzy0",
+          "mode": "list",
+          "cachedResultName": "Job Description sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1is1Hd0rSyQFSqpGQMLrSIkdppwWR-KxCpCEzniYUzy0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1is1Hd0rSyQFSqpGQMLrSIkdppwWR-KxCpCEzniYUzy0/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Jd_id",
+              "lookupValue": "={{ $('Form submission').item.json['Job Description'] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -300,
+        -1810
+      ],
+      "id": "1e1a3218-7155-4023-883d-63e8132250d1",
+      "name": "Fetching job description details",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kHc3elZdvHkVPTZj",
+          "name": "Google Sheets account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "file",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -300,
+        -2010
+      ],
+      "id": "d4d2952e-4318-4ae4-af54-051a1b464163",
+      "name": "Extracting Resume"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1qIHrM0pfOBKlqBpAhYrnKDwlKsbC4apq7vGZEWHY5Lo",
+          "mode": "list",
+          "cachedResultName": "Resume_screening",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1qIHrM0pfOBKlqBpAhYrnKDwlKsbC4apq7vGZEWHY5Lo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "candidates_list",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1qIHrM0pfOBKlqBpAhYrnKDwlKsbC4apq7vGZEWHY5Lo/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "start_timestamp": "={{ $('Webhook').item.json.body.call.start_timestamp }}",
+            "end_timestamp": "={{ $('Webhook').item.json.body.call.end_timestamp }}",
+            "agent_name": "={{ $('Webhook').item.json.body.call.agent_name }}",
+            "combined_cost": "={{ $('Webhook').item.json.body.call.call_cost.combined_cost }}",
+            "call_Id": "={{ $('Webhook').item.json.body.call.call_id }}",
+            "screening_ques_ans": "={{ $json.output.screening_qa.map(i => `- Q: ${i.question}\\n A: ${i.answer}`).join('\\n') }}\n",
+            "missing_fields": "={{ $json.output.missing_fields.join() }}",
+            "location_jaipur_ok": "={{ $json.output.jaipur_ok }}",
+            "introduction_summary": "={{ $json.output.intro_summary }}",
+            "Name": "={{ $json.output.candidate_name }}",
+            "notes": "={{ $json.output.notes }}",
+            "email_data": "={{ $json.output.email_data }}",
+            "Email": "={{ $json.output.email }}"
+          },
+          "matchingColumns": [
+            "Name"
+          ],
+          "schema": [
+            {
+              "id": "Job Id",
+              "displayName": "Job Id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Contact No",
+              "displayName": "Contact No",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Relevance score",
+              "displayName": "Relevance score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Skills",
+              "displayName": "Skills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Questions To Ask",
+              "displayName": "Questions To Ask",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "proceed_with_candidate",
+              "displayName": "proceed_with_candidate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Resume",
+              "displayName": "Resume",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "call_Id",
+              "displayName": "call_Id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "agent_name",
+              "displayName": "agent_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "start_timestamp",
+              "displayName": "start_timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "end_timestamp",
+              "displayName": "end_timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "combined_cost",
+              "displayName": "combined_cost",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "introduction_summary",
+              "displayName": "introduction_summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "location_jaipur_ok",
+              "displayName": "location_jaipur_ok",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "screening_ques_ans",
+              "displayName": "screening_ques_ans",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "missing_fields",
+              "displayName": "missing_fields",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email_data",
+              "displayName": "email_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -360,
+        -1440
+      ],
+      "id": "a0d0c4b3-60aa-436d-9070-b1585ac1f475",
+      "name": "Updates - after call with the candidate",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kHc3elZdvHkVPTZj",
+          "name": "Google Sheets account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Takes the single form-submission item that has multiple binaries\n// and returns one item per binary field.\n// Adjust 'jd_id' or any other form fields you want to pass along.\n\nconst src = items[0] || {};\nconst bin = src.binary || {};\nconst json = src.json || {};\n\n// Optional: carry over any form fields (e.g., selected JD from a dropdown)\nconst jd_id = json.jd_id || json.JD_ID || null;  // rename to your actual field\n\n// Only keep fields that start with \"Upload_resume_\" (safer)\nconst keys = Object.keys(bin).filter(k => k.startsWith('Upload_resume_'));\n\nif (keys.length === 0) {\n  // If no binaries, pass through the original item to avoid empty runs\n  return items;\n}\n\nreturn keys.map((key) => {\n  const fileMeta = bin[key] || {};\n  return {\n    json: {\n      binaryField: key,                     // e.g., \"Upload_resume_0\"\n      fileName: fileMeta.fileName || fileMeta.fileName || key,\n      jd_id,                                // keep JD selector handy\n    },\n    binary: {\n      [key]: fileMeta,                      // keep only this one binary\n    },\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        -1910
+      ],
+      "id": "fb61de78-2190-45be-946b-7ae8c77edbee",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        516,
+        -1910
+      ],
+      "id": "421776ee-47c5-46d2-b269-62bf5f1f351e",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalize: one output item per file, binary always under 'file'\nconst out = [];\nfor (const item of $input.all()) {\n  const bin = item.binary || {};\n  for (const k of Object.keys(bin)) {\n    const b = bin[k];\n    out.push({\n      json: {\n        filename: b?.fileName || null,\n        mimeType: b?.mimeType || null,\n        size: b?.fileSize || null,\n        originalKey: k\n      },\n      binary: { file: b } // <-- stable key\n    });\n  }\n}\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -740,
+        -1910
+      ],
+      "id": "49310126-b603-4c6d-b9d0-a8a4deb85c48",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "select": "user",
+        "user": {
+          "__rl": true,
+          "value": "U09C0BMN9M3",
+          "mode": "list",
+          "cachedResultName": "tanya.k"
+        },
+        "text": "={{ $json[\"Name\"] + \" was skipped because either the Contact No. is invalid (should be 10 digits) or proceed_with_candidate is not 'Yes'.\" }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1160,
+        -2140
+      ],
+      "id": "4efa3c0c-6b1a-47a8-b59e-24181d34d29e",
+      "name": "Slack",
+      "webhookId": "1f351a00-ec9a-48be-80e8-5a0806c0d1a7",
+      "credentials": {
+        "slackApi": {
+          "id": "IWD8DT3Ccjk6N8Gg",
+          "name": "CWS - Slack"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Retell request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Fetching job description details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Updates - after call with the candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Getting candidate info": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update-1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retell request": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Form submission": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetching job description details": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Extracting Resume": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Updates - after call with the candidate": {
+      "main": [
+        [
+          {
+            "node": "Getting candidate info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "update-1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Extracting Resume",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack": {
+      "main": [
+        [
+          {
+            "node": "Retell request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "427a9fac-5de7-4e0a-bb26-33825029a674",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c41aaba552ee9ab1c18d2b21c70313a4c072a32c0fb8a1b3b54c778592a0c56e"
+  },
+  "id": "8tGEpSE0kTMLP7EM",
+  "tags": []
+}
