@@ -1,0 +1,506 @@
+{
+  "name": "My workflow 3",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=### INPUT JSON\n{{ JSON.stringify($json, null, 2) }}\n",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are a strict JSON extractor.\n\nTASK\nFrom the provided JSON input, extract specific fields and return ONLY the JSON object defined in OUTPUT SCHEMA. Do not include any extra text, keys, or comments.\n\nINPUT FORMAT (paths may or may not exist)\n- Preferred user number: body.retell_llm_dynamic_variables.user_number\n- Fallback user numbers: collected_dynamic_variables.user_number, user_number (root)\n- Call transcript: body.call.transcript\n- Call summary (if available): call_analysis.call_summary\n- Additional fields for SMS context: collected_dynamic_variables.phone, collected_dynamic_variables.firstName, collected_dynamic_variables.order_id\n\nFIELD RULES\n1) user_number\n   - Source priority (first non-empty wins; NEVER use the transcript):\n     1) body.retell_llm_dynamic_variables.user_number\n     2) collected_dynamic_variables.user_number\n     3) user_number (root)\n   - Normalize to digits only (remove +, spaces, dashes, parentheses, and all non-digits).\n   - If none present → \"\" (empty string).\n\n2) order_details\n   - Source: body.call.transcript ONLY.\n   - Extract ONLY items explicitly ordered by the caller; keep to ONE concise line.\n   - Preserve explicit modifiers (e.g., \"gluten-free crust\", \"extra cheese\", \"no onions\").\n   - Convert spelled-out numbers to digits when unambiguous (e.g., “two”→“2”).\n   - Collapse repeated spaces/commas.\n   - Do NOT infer or invent items, options, or prices.\n   - If no clear items were ordered or transcript missing/empty/“No conversation happened.” → \"\".\n\n3) order_status\n   - \"proceed\": transcript shows clear items ordered and no cancellation/refusal.\n   - \"cancelled\": caller refuses/cancels/hangs up, transcript missing/empty/“No conversation happened.”, OR order_details is \"\".\n\n4) call_summary\n   - Preferred: call_analysis.call_summary.\n   - If missing, derive a brief 1–2 sentence SMS-friendly summary from the transcript focused on what was ordered, service type/timing if mentioned, and next steps.\n   - No prices unless explicitly spoken.\n   - If nothing to summarize → \"\".\n\n5) total\n   - Extract ONLY from call_analysis.call_summary when present.\n   - Look for a single monetary amount representing the order total (e.g., \"$28.89\", \"₹749.00\", \"28.89 USD\").\n   - If multiple amounts appear, pick the one explicitly labeled near keywords like \"total\", \"Order Total\", \"Total is\". If none labeled, pick the LAST monetary amount in the summary.\n   - Preserve currency symbol/code if present; return as a string exactly as shown (do not reformat).\n   - If call_summary is missing or no monetary amount is found → \"\".\n\n6) phone\n   - Source: collected_dynamic_variables.phone (if present).\n   - Normalize to digits only; else \"\".\n\n7) firstName\n   - Source: collected_dynamic_variables.firstName (if present).\n   - Trim whitespace; else \"\".\n\n8) order_id\n   - Source: collected_dynamic_variables.order_id (if present).\n   - Return as string (convert numeric to string). If absent → \"\".\n\nEDGE & CLEANUP RULES\n- If body.call.transcript is missing/empty/“No conversation happened.”:\n  - order_details = \"\"\n  - order_status = \"cancelled\"\n- Collapse consecutive spaces and commas in order_details.\n- All phone numbers (user_number, phone) must be digits only.\n- Never pull user_number from the transcript.\n\nOUTPUT SCHEMA (return EXACTLY this object)\n{\n  \"user_number\": \"<digits only or empty string>\",\n  \"order_details\": \"<only items list and their quantity>\",\n  \"order_status\": \"proceed\" | \"cancelled\",\n  \"call_summary\": \"<short sms-friendly summary or empty string>\",\n  \"total\": \"<order total from call_summary or empty string>\",\n  \"phone\": \"<digits only or empty string>\",\n  \"firstName\": \"<string or empty string>\",\n  \"order_id\": \"<string or empty string>\"\n}\n\nRETURN FORMAT\n- Output ONLY the JSON object above. No markdown, no extra text, no additional keys.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        336,
+        560
+      ],
+      "id": "d8e192d9-7f1e-4840-9a98-54b97922d4ee",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        320,
+        752
+      ],
+      "id": "6fe6d481-5c87-46fd-9e43-e8df44389b56",
+      "name": "OpenAI Chat Model"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/plain; charset=utf-8"
+              }
+            ]
+          },
+          "responseKey": "={{ $json.text }}"
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        560,
+        304
+      ],
+      "id": "10e8b6bd-f904-4bff-bfc9-00572b606b21",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "content": "When a call is received this webhook gets triggered and after the call we'll analyse using ai and save the order in GS.",
+        "width": 220,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -48,
+        736
+      ],
+      "typeVersion": 1,
+      "id": "b6e84951-a9a4-4dda-909c-57ff980eec6f",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ab3830d7-db5b-407a-bc24-849825b64348",
+              "leftValue": "={{ $json.body.event }}",
+              "rightValue": "call_analyzed",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        128,
+        560
+      ],
+      "id": "81693af3-0e3b-4602-80dd-e3a7ee18e158",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1RxmuYBHXw_i_DVxOvXKRBBRlxwXhjDBbL4oNQIBWLww",
+          "mode": "list",
+          "cachedResultName": "food_order_relay",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1RxmuYBHXw_i_DVxOvXKRBBRlxwXhjDBbL4oNQIBWLww/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1RxmuYBHXw_i_DVxOvXKRBBRlxwXhjDBbL4oNQIBWLww/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "user_number": "={{ $json.output.user_number }}",
+            "order_status": "={{ $json.output.order_status }}",
+            "order_details": "={{ $json.output.order_details }}",
+            "order_id": "{{ $json.output.order_id }}",
+            "user_name": "{{ $json.output.firstName}}",
+            "order_total": "{{ $json.output.total}}"
+          },
+          "matchingColumns": [
+            "user_number"
+          ],
+          "schema": [
+            {
+              "id": "order_id",
+              "displayName": "order_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "user_name",
+              "displayName": "user_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "user_number",
+              "displayName": "user_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "order_details",
+              "displayName": "order_details",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "order_status",
+              "displayName": "order_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "order_total",
+              "displayName": "order_total",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        752,
+        464
+      ],
+      "id": "820f938c-c047-4e28-a9e2-3d80afe63fd3",
+      "name": "Google Sheets"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"user_number\": \"7044396967\",\n  \"order_details\": \"2 Hawaiian BBQ Pizza + 1 coke \",\n  \"order_status\": \"proceed\",\n  \"call_summary\": \"Customer scheduled a pickup for two Hawaiian BBQ pizzas on Oct 18 at 8 PM with a $4 tip and a birthday message. Order confirmed.\",\n  \"total\": \"$12.4\",\n  \"phone\": \"9198317620\",\n  \"firstName\": \"Nikhil\",\n  \"order_id\": \"2098\"\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        528,
+        752
+      ],
+      "id": "a70e1a89-0136-48b7-ba3f-338ca1f13b09",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input: JSON menu\n// Output: Single string (joined with \\n\\n) containing all categories, items, variants\n\nconst menu = items[0].json;\nconst blocks = [];\n\n(menu.categories || []).forEach((cat, catIndex) => {\n  const catName = cat.name?.trim();\n  const catId = cat.category_id || catIndex + 1;\n\n  let categoryText = `Category: ${catName} (Category ID: ${catId})\\nItems:\\n`;\n\n  (cat.items || []).forEach(item => {\n    const itemName = item.name?.trim();\n    const itemId = item.item_id;\n    const desc = item.short_desc || item.long_desc || \"\";\n\n    // Variants with explicit labels\n    const variants = (item.variants || []).map(v => {\n      const price = v.display_price ? `$${(v.display_price/100).toFixed(2)}` : \"N/A\";\n      const size = v.size_name || \"Standard\";\n      return `  - Variant ID: ${v.item_config_id} | Size: ${size} | Price: ${price}`;\n    }).join(\"\\n\");\n\n    categoryText += `• Item: ${itemName} (Item ID: ${itemId})\\n`;\n    if (desc) categoryText += `  Description: ${desc}\\n`;\n    if (variants) categoryText += `${variants}\\n`;\n  });\n\n  blocks.push(categoryText.trim());\n});\n\n// Join all category blocks into one string with \\n\\n separation\nconst fullText = blocks.join(\"\\n\\n\\n\\n\");\n\nreturn [{ json: { text: fullText } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        304
+      ],
+      "id": "f2d1d17c-200b-48c5-89ff-cbf9ea6175db",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "jsCode": "const topSellers = $input.first().json.breakdown.slice(0, 10);\nconst blocks = [];\n\nblocks.push(\"Top Selling Items:\\n\");\n\ntopSellers.forEach((item, i) => {\n  const price = item.sales_total ? `$${(item.sales_total/100).toFixed(2)}` : \"N/A\";\n  blocks.push(`• ${item.name} | Quantity Sold: ${item.quantity} | Sales Total: ${price}`);\n});\n\n// Join into one block\nconst fullText = blocks.join(\"\\n\");\n\nreturn [{ json: { text: fullText } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        32
+      ],
+      "id": "3b495d0d-ea86-43fa-94d0-484504c864b5",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        560,
+        32
+      ],
+      "id": "bbb5ea4f-081e-4360-bc82-fb197da7ad28",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "path": "cb2435e2-9d70-42f3-bdd0-15bd342e1ca0",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -112,
+        304
+      ],
+      "id": "f6af0f6c-ab7e-4bce-99a7-320b89d8428c",
+      "name": "Fetching menu details",
+      "webhookId": "cb2435e2-9d70-42f3-bdd0-15bd342e1ca0"
+    },
+    {
+      "parameters": {
+        "path": "15c8020c-a66d-4ff7-b0ce-cd3bda2d942f",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -112,
+        32
+      ],
+      "id": "34c7748b-dea7-4c44-9169-b2f93218112d",
+      "name": "Fetching top selling items",
+      "webhookId": "15c8020c-a66d-4ff7-b0ce-cd3bda2d942f"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "2fc79c06-0243-43e3-acce-f76d51e46df2",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -112,
+        560
+      ],
+      "id": "6de6b04c-8a10-4098-b133-5c67865841ff",
+      "name": "Calling Webhook",
+      "webhookId": "2fc79c06-0243-43e3-acce-f76d51e46df2"
+    },
+    {
+      "parameters": {
+        "url": "https://lbrevel-staging.novadine.com/api/v2/management/reports/top-selling-items?period=day&from=2025-04-01&to=2025-09-25",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        112,
+        32
+      ],
+      "id": "180b8b06-cfbf-4f53-96c5-b0ad15971666",
+      "name": "top-selling-items - Request"
+    },
+    {
+      "parameters": {
+        "url": "https://lbrevel-staging.novadine.com/api/v2/stores/008/menus",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        112,
+        304
+      ],
+      "id": "c585b73a-57d3-4a71-aa4c-418f464b7447",
+      "name": "fetching menus - Request"
+    },
+    {
+      "parameters": {
+        "from": "+19125594192",
+        "to": "+916375296274",
+        "message": "={{ ($json.output.order_id && $json.output.order_id !== '')\n  ? ('Hi ' + ($json.output.firstName || 'there') +\n     ', your order has been placed successfully having order id : ' + $json.output.order_id +\n     '. The items ordered are ' + ($json.output.order_details || 'N/A') +\n     ' having total of ' + ($json.output.total || 'N/A') + '.')\n  : ('Sorry, we couldn’t complete your order right now.')\n}}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        752,
+        672
+      ],
+      "id": "a936aa52-ba97-4bf6-990a-551c5b61e3f3",
+      "name": "Twilio"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Twilio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetching menu details": {
+      "main": [
+        [
+          {
+            "node": "fetching menus - Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetching top selling items": {
+      "main": [
+        [
+          {
+            "node": "top-selling-items - Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calling Webhook": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "top-selling-items - Request": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetching menus - Request": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "905700c2-2eda-401d-a831-332698c126fa",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b5afb01b73604ee86e8befcdc3abc84e7ac6b3065977ffc4e606767f4038f699"
+  },
+  "id": "YSTolzjxExhsMaUSZdaE7",
+  "tags": []
+}
