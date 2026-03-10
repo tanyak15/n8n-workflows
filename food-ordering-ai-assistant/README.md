@@ -34,6 +34,7 @@ This ensures zero missed calls, faster order processing, and a consistent custom
 
 ### Menu Fetching
 - Restaurant menu is fetched dynamically via API.
+  ![Description](./screenshots/food-ordering.png)
 
 ### Incoming Call Handling
 - Calls are handled by an AI voice agent powered by **Retell.ai**.
